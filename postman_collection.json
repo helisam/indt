@@ -1,0 +1,253 @@
+{
+  "info": {
+    "_postman_id": "b5e9e9e0-5b3a-4b5b-9b0a-5b3a4b5b9b0a",
+    "name": "Seguros API",
+    "description": "Coleção para testar as APIs de Proposta e Contratação de Seguros",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Proposta Service",
+      "item": [
+        {
+          "name": "Listar todas as propostas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{propostaServiceUrl}}/api/Propostas",
+              "host": ["{{propostaServiceUrl}}"],
+              "path": ["api", "Propostas"]
+            },
+            "description": "Retorna todas as propostas cadastradas no sistema"
+          },
+          "response": []
+        },
+        {
+          "name": "Obter proposta por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{propostaServiceUrl}}/api/Propostas/{{propostaId}}",
+              "host": ["{{propostaServiceUrl}}"],
+              "path": ["api", "Propostas", "{{propostaId}}"]
+            },
+            "description": "Retorna uma proposta específica pelo seu ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Listar propostas por status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{propostaServiceUrl}}/api/Propostas/status/{{status}}",
+              "host": ["{{propostaServiceUrl}}"],
+              "path": ["api", "Propostas", "status", "{{status}}"]
+            },
+            "description": "Retorna todas as propostas com um determinado status (0 = EmAnalise, 1 = Aprovada, 2 = Rejeitada)"
+          },
+          "response": []
+        },
+        {
+          "name": "Criar proposta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData && jsonData.id) {",
+                  "    pm.environment.set(\"propostaId\", jsonData.id);",
+                  "    console.log(\"Proposta ID salvo: \" + jsonData.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"João Silva\",\n  \"cpf\": \"{{cpf}}\",\n  \"valorSeguro\": 1000.00\n}"
+            },
+            "url": {
+              "raw": "{{propostaServiceUrl}}/api/Propostas",
+              "host": ["{{propostaServiceUrl}}"],
+              "path": ["api", "Propostas"]
+            },
+            "description": "Cria uma nova proposta de seguro"
+          },
+          "response": []
+        },
+        {
+          "name": "Atualizar status da proposta",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{propostaId}}\",\n  \"novoStatus\": 1\n}"
+            },
+            "url": {
+              "raw": "{{propostaServiceUrl}}/api/Propostas/status",
+              "host": ["{{propostaServiceUrl}}"],
+              "path": ["api", "Propostas", "status"]
+            },
+            "description": "Atualiza o status de uma proposta (0 = EmAnalise, 1 = Aprovada, 2 = Rejeitada)"
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints para gerenciamento de propostas de seguro"
+    },
+    {
+      "name": "Contratacao Service",
+      "item": [
+        {
+          "name": "Listar todos os contratos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{contratacaoServiceUrl}}/api/Contratos",
+              "host": ["{{contratacaoServiceUrl}}"],
+              "path": ["api", "Contratos"]
+            },
+            "description": "Retorna todos os contratos cadastrados no sistema"
+          },
+          "response": []
+        },
+        {
+          "name": "Obter contrato por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{contratacaoServiceUrl}}/api/Contratos/{{contratoId}}",
+              "host": ["{{contratacaoServiceUrl}}"],
+              "path": ["api", "Contratos", "{{contratoId}}"]
+            },
+            "description": "Retorna um contrato específico pelo seu ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Obter contrato por ID da proposta",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{contratacaoServiceUrl}}/api/Contratos/proposta/{{propostaId}}",
+              "host": ["{{contratacaoServiceUrl}}"],
+              "path": ["api", "Contratos", "proposta", "{{propostaId}}"]
+            },
+            "description": "Retorna um contrato específico pelo ID da proposta associada"
+          },
+          "response": []
+        },
+        {
+          "name": "Listar contratos ativos por CPF",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{contratacaoServiceUrl}}/api/Contratos/cpf/{{cpf}}",
+              "host": ["{{contratacaoServiceUrl}}"],
+              "path": ["api", "Contratos", "cpf", "{{cpf}}"]
+            },
+            "description": "Retorna todos os contratos ativos para um determinado CPF"
+          },
+          "response": []
+        },
+        {
+          "name": "Criar contrato",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData && jsonData.id) {",
+                  "    pm.environment.set(\"contratoId\", jsonData.id);",
+                  "    console.log(\"Contrato ID salvo: \" + jsonData.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"propostaId\": \"{{propostaId}}\",\n  \"nome\": \"João Silva\",\n  \"cpf\": \"{{cpf}}\",\n  \"valorSeguro\": 1000.00,\n  \"duracaoMeses\": 12\n}"
+            },
+            "url": {
+              "raw": "{{contratacaoServiceUrl}}/api/Contratos",
+              "host": ["{{contratacaoServiceUrl}}"],
+              "path": ["api", "Contratos"]
+            },
+            "description": "Cria um novo contrato de seguro"
+          },
+          "response": []
+        },
+        {
+          "name": "Cancelar contrato",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{contratacaoServiceUrl}}/api/Contratos/{{contratoId}}/cancelar",
+              "host": ["{{contratacaoServiceUrl}}"],
+              "path": ["api", "Contratos", "{{contratoId}}", "cancelar"]
+            },
+            "description": "Cancela um contrato existente"
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints para gerenciamento de contratos de seguro"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test(\"Status code is successful\", function () {",
+          "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 202, 204]);",
+          "});"
+        ]
+      }
+    }
+  ]
+}
