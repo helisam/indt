@@ -37,6 +37,11 @@
         font-family: Arial, sans-serif;
         font-size: 14px;
       }
+      .small-label {
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        font-style: italic;
+      }
       .arrow {
         stroke: #616161;
         stroke-width: 2;
@@ -75,6 +80,7 @@
   
   <rect x="120" y="360" width="210" height="60" rx="5" ry="5" class="layer" />
   <text x="225" y="395" text-anchor="middle" class="label">Infrastructure</text>
+  <text x="225" y="415" text-anchor="middle" class="small-label">PropostaStatusProducer</text>
   
   <!-- ContratacaoService -->
   <rect x="450" y="100" width="250" height="350" rx="10" ry="10" class="microservice" />
@@ -92,6 +98,7 @@
   
   <rect x="470" y="360" width="210" height="60" rx="5" ry="5" class="layer" />
   <text x="575" y="395" text-anchor="middle" class="label">Infrastructure</text>
+  <text x="575" y="415" text-anchor="middle" class="small-label">PropostaMessageConsumer</text>
   
   <!-- Banco de dados PostgreSQL -->
   <rect x="150" y="500" width="150" height="60" rx="5" ry="5" class="database" />
@@ -102,14 +109,26 @@
   
   <!-- Fila SQS -->
   <rect x="325" y="400" width="150" height="60" rx="5" ry="5" class="queue" />
-  <text x="400" y="435" text-anchor="middle" class="label">AWS SQS (LocalStack)</text>
+  <text x="400" y="425" text-anchor="middle" class="label">AWS SQS</text>
+  <text x="400" y="445" text-anchor="middle" class="small-label">proposta-status-queue</text>
+  
+  <!-- LocalStack -->
+  <rect x="325" y="470" width="150" height="30" rx="5" ry="5" fill="#f3e5f5" stroke="#8e24aa" stroke-width="2" />
+  <text x="400" y="490" text-anchor="middle" class="small-label">LocalStack (Dev/Test)</text>
   
   <!-- Conexões -->
   <path d="M 225 420 L 225 500" class="arrow" />
   <path d="M 575 420 L 575 500" class="arrow" />
   
+  <!-- Fluxo de mensagens -->
   <path d="M 330 390 L 400 400" class="arrow" />
+  <text x="340" y="380" class="small-label">1. Envia status</text>
+  
   <path d="M 400 460 L 470 390" class="arrow" />
+  <text x="450" y="440" class="small-label">2. Consome mensagem</text>
+  
+  <path d="M 575 420 L 575 460 L 500 500" class="dashed-arrow" />
+  <text x="590" y="460" class="small-label">3. Cria contrato</text>
   
   <!-- Legenda -->
   <rect x="600" y="50" width="20" height="20" class="microservice" />

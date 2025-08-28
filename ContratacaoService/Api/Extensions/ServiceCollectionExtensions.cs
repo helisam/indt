@@ -27,22 +27,63 @@ namespace ContratacaoService.Api.Extensions
             // Configuração do banco de dados
             services.AddDbContext<ContratacaoDbContext>(options =>
                 options.UseNpgsql(configuration.GetConnectionString("PostgreSQL")));
+            
+            // Aplicar migrações automaticamente
+            using (var scope = services.BuildServiceProvider().CreateScope())
+            {
+                var dbContext = scope.ServiceProvider.GetRequiredService<ContratacaoDbContext>();
+                dbContext.Database.Migrate();
+            }
 
             // Repositórios
             services.AddScoped<IContratoRepository, ContratoRepository>();
 
             // Configuração do AWS SQS
-            services.AddAWSService<IAmazonSQS>();
-
-            // Serviço de consumo de mensagens
-            services.AddHostedService(provider =>
+            if (configuration.GetValue<bool>("AWS:Enabled"))
             {
-                var sqsClient = provider.GetRequiredService<IAmazonSQS>();
-                var serviceProvider = provider;
-                var logger = provider.GetRequiredService<ILogger<PropostaMessageConsumer>>();
-                var queueUrl = configuration["AWS:SQS:PropostaStatusQueue"] ?? throw new InvalidOperationException("A configuração 'AWS:SQS:PropostaStatusQueue' não foi encontrada.");
-                return new PropostaMessageConsumer(sqsClient, serviceProvider, logger, queueUrl);
-            });
+                // Configuração do cliente SQS
+                var useLocalStack = configuration.GetValue<bool>("LocalStack:UseLocalStack");
+                if (useLocalStack)
+                {
+                    var localStackHost = configuration["LocalStack:LocalStackHost"] ?? "localhost";
+                    var localStackPort = configuration.GetValue<int>("LocalStack:LocalStackPort", 4566);
+                    var serviceUrl = $"http://{localStackHost}:{localStackPort}";
+                    
+                    services.AddSingleton<IAmazonSQS>(provider => 
+                    {
+                        var sqsConfig = new Amazon.SQS.AmazonSQSConfig
+                        {
+                            ServiceURL = serviceUrl,
+                            UseHttp = true
+                        };
+                        return new Amazon.SQS.AmazonSQSClient("dummy", "dummy", sqsConfig);
+                    });
+                }
+                else
+                {
+                    services.AddAWSService<IAmazonSQS>();
+                }
+
+                // Serviço de consumo de mensagens
+                services.AddHostedService(provider =>
+                {
+                    var sqsClient = provider.GetRequiredService<IAmazonSQS>();
+                    var serviceProvider = provider;
+                    var logger = provider.GetRequiredService<ILogger<PropostaMessageConsumer>>();
+                    var queueUrl = configuration["AWS:SQS:PropostaStatusQueue"] ?? "proposta-status-queue";
+                    if (!queueUrl.StartsWith("http"))
+                    {
+                        var useLocalStack = configuration.GetValue<bool>("LocalStack:UseLocalStack");
+                        if (useLocalStack)
+                        {
+                            var localStackHost = configuration["LocalStack:LocalStackHost"] ?? "localhost";
+                            var localStackPort = configuration.GetValue<int>("LocalStack:LocalStackPort", 4566);
+                            queueUrl = $"http://{localStackHost}:{localStackPort}/000000000000/{queueUrl}";
+                        }
+                    }
+                    return new PropostaMessageConsumer(sqsClient, serviceProvider, logger, queueUrl);
+                });
+            }
 
             return services;
         }

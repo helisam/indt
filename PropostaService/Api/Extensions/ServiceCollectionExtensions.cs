@@ -25,16 +25,47 @@ namespace PropostaService.Api.Extensions
             // Configuração do banco de dados
             services.AddDbContext<PropostaDbContext>(options =>
                 options.UseNpgsql(configuration.GetConnectionString("PostgreSQL")));
+            
+            // Aplicar migrações automaticamente
+            using (var scope = services.BuildServiceProvider().CreateScope())
+            {
+                var dbContext = scope.ServiceProvider.GetRequiredService<PropostaDbContext>();
+                dbContext.Database.Migrate();
+            }
 
             // Repositórios
             services.AddScoped<IPropostaRepository, PropostaRepository>();
 
             // Serviço de mensageria
-            services.AddScoped<IAmazonSQS>(provider => new AmazonSQSClient());
+            services.AddScoped<IAmazonSQS>(provider => 
+            {
+                var useLocalStack = configuration.GetValue<bool>("LocalStack:UseLocalStack");
+                if (useLocalStack)
+                {
+                    var localStackHost = configuration["LocalStack:LocalStackHost"] ?? "localhost";
+                    var localStackPort = configuration.GetValue<int>("LocalStack:LocalStackPort", 4566);
+                    var config = new AmazonSQSConfig
+                    {
+                        ServiceURL = $"http://{localStackHost}:{localStackPort}"
+                    };
+                    return new AmazonSQSClient("dummy", "dummy", config);
+                }
+                return new AmazonSQSClient();
+            });
             services.AddScoped<IPropostaMessageService>(provider =>
             {
                 var sqsClient = provider.GetRequiredService<IAmazonSQS>();
                 var queueUrl = configuration["AWS:SQS:PropostaStatusQueue"] ?? "http://localhost:4566/000000000000/proposta-status-queue";
+                if (!queueUrl.StartsWith("http"))
+                {
+                    var useLocalStack = configuration.GetValue<bool>("LocalStack:UseLocalStack");
+                    if (useLocalStack)
+                    {
+                        var localStackHost = configuration["LocalStack:LocalStackHost"] ?? "localhost";
+                        var localStackPort = configuration.GetValue<int>("LocalStack:LocalStackPort", 4566);
+                        queueUrl = $"http://{localStackHost}:{localStackPort}/000000000000/{queueUrl}";
+                    }
+                }
                 return new PropostaMessageService(sqsClient, queueUrl);
             });
 

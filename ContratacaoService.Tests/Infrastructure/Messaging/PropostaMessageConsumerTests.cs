@@ -228,23 +228,15 @@ namespace ContratacaoService.Tests.Infrastructure.Messaging
         }
 
         [Fact]
-        public void TestarProcessamentoMensagemSQS_ComMensagemValida_DeveProcessarCorretamente()
+        public async Task TestarProcessamentoMensagemSQS_ComMensagemValida_DeveProcessarCorretamente()
         {
             // Arrange
             var mockSqsClient = new Mock<IAmazonSQS>();
             var mockServiceProvider = new Mock<IServiceProvider>();
             var mockLogger = new Mock<ILogger<PropostaMessageConsumer>>();
+            var mockScope = new Mock<IServiceScope>();
+            var mockScopeFactory = new Mock<IServiceScopeFactory>();
             
-            mockServiceProvider
-                .Setup(sp => sp.GetService(typeof(IPropostaMessageConsumerService)))
-                .Returns(_mockConsumerService.Object);
-
-            var consumer = new PropostaMessageConsumer(
-                mockSqsClient.Object,
-                mockServiceProvider.Object,
-                mockLogger.Object,
-                "https://sqs.us-east-1.amazonaws.com/123456789012/proposta-queue");
-
             var propostaId = Guid.NewGuid();
             var mensagem = new {
                 PropostaId = propostaId,
@@ -258,75 +250,173 @@ namespace ContratacaoService.Tests.Infrastructure.Messaging
             var sqsMessage = new Message
             {
                 Body = messageBody,
+                MessageId = "test-message-id",
                 MessageAttributes = new Dictionary<string, MessageAttributeValue>
                 {
                     { "EventType", new MessageAttributeValue { StringValue = "PropostaStatusAtualizado", DataType = "String" } }
                 }
             };
 
+            // Configurar o mock do service provider para retornar o scope factory
+            mockServiceProvider
+                .Setup(sp => sp.GetService(typeof(IServiceScopeFactory)))
+                .Returns(mockScopeFactory.Object);
+
+            // Configurar o scope factory para retornar o scope
+            mockScopeFactory
+                .Setup(factory => factory.CreateScope())
+                .Returns(mockScope.Object);
+
+            // Configurar o scope para retornar o service provider
+            mockScope
+                .Setup(scope => scope.ServiceProvider)
+                .Returns(mockServiceProvider.Object);
+
+            // Configurar o service provider para retornar o consumer service
+            mockServiceProvider
+                .Setup(sp => sp.GetRequiredService(typeof(IPropostaMessageConsumerService)))
+                .Returns(_mockConsumerService.Object);
+
             _mockConsumerService
                 .Setup(service => service.ProcessarMensagemPropostaAsync(
-                    It.IsAny<Guid>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string>(),
-                    It.IsAny<decimal>()))
+                    It.Is<Guid>(id => id == propostaId),
+                    It.Is<string>(s => s == "Aprovada"),
+                    It.Is<string>(n => n == "João Silva"),
+                    It.Is<string>(c => c == "12345678900"),
+                    It.Is<decimal>(v => v == 1000.50m)))
                 .Returns(Task.CompletedTask);
-
-            // Act & Assert - Não podemos chamar diretamente o método de processamento
-            // devido às dependências, mas podemos verificar se o setup está correto
-            Assert.NotNull(consumer);
-        }
-
-        [Fact]
-        public void TestarProcessamentoMensagemSQS_ComMensagemInvalida_DeveTratarExcecao()
-        {
-            // Arrange
-            var mockSqsClient = new Mock<IAmazonSQS>();
-            var mockServiceProvider = new Mock<IServiceProvider>();
-            var mockLogger = new Mock<ILogger<PropostaMessageConsumer>>();
-            
-            mockServiceProvider
-                .Setup(sp => sp.GetService(typeof(IPropostaMessageConsumerService)))
-                .Returns(_mockConsumerService.Object);
 
             var consumer = new PropostaMessageConsumer(
                 mockSqsClient.Object,
                 mockServiceProvider.Object,
                 mockLogger.Object,
                 "https://sqs.us-east-1.amazonaws.com/123456789012/proposta-queue");
+
+            // Usar reflexão para acessar o método privado ProcessarMensagemAsync
+            var processarMensagemMethod = typeof(PropostaMessageConsumer).GetMethod(
+                "ProcessarMensagemAsync", 
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+            // Act
+            await (Task)processarMensagemMethod.Invoke(consumer, new object[] { sqsMessage });
+
+            // Assert
+            _mockConsumerService.Verify(
+                service => service.ProcessarMensagemPropostaAsync(
+                    It.Is<Guid>(id => id == propostaId),
+                    It.Is<string>(s => s == "Aprovada"),
+                    It.Is<string>(n => n == "João Silva"),
+                    It.Is<string>(c => c == "12345678900"),
+                    It.Is<decimal>(v => v == 1000.50m)),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task TestarProcessamentoMensagemSQS_ComMensagemInvalida_DeveTratarExcecao()
+        {
+            // Arrange
+            var mockSqsClient = new Mock<IAmazonSQS>();
+            var mockServiceProvider = new Mock<IServiceProvider>();
+            var mockLogger = new Mock<ILogger<PropostaMessageConsumer>>();
+            var mockScope = new Mock<IServiceScope>();
+            var mockScopeFactory = new Mock<IServiceScopeFactory>();
+            
+            // Configurar o mock do service provider para retornar o scope factory
+            mockServiceProvider
+                .Setup(sp => sp.GetService(typeof(IServiceScopeFactory)))
+                .Returns(mockScopeFactory.Object);
+
+            // Configurar o scope factory para retornar o scope
+            mockScopeFactory
+                .Setup(factory => factory.CreateScope())
+                .Returns(mockScope.Object);
+
+            // Configurar o scope para retornar o service provider
+            mockScope
+                .Setup(scope => scope.ServiceProvider)
+                .Returns(mockServiceProvider.Object);
+
+            // Configurar o service provider para retornar o consumer service
+            mockServiceProvider
+                .Setup(sp => sp.GetRequiredService(typeof(IPropostaMessageConsumerService)))
+                .Returns(_mockConsumerService.Object);
 
             var messageBody = "{ mensagem inválida }";
             var sqsMessage = new Message
             {
                 Body = messageBody,
+                MessageId = "test-invalid-message-id",
                 MessageAttributes = new Dictionary<string, MessageAttributeValue>
                 {
                     { "EventType", new MessageAttributeValue { StringValue = "PropostaStatusAtualizado", DataType = "String" } }
                 }
             };
 
-            // Act & Assert - Verificamos apenas se o consumer foi criado corretamente
-            Assert.NotNull(consumer);
-        }
-
-        [Fact]
-        public void TestarProcessamentoMensagemSQS_ComEventTypeDiferente_NaoDeveProcessar()
-        {
-            // Arrange
-            var mockSqsClient = new Mock<IAmazonSQS>();
-            var mockServiceProvider = new Mock<IServiceProvider>();
-            var mockLogger = new Mock<ILogger<PropostaMessageConsumer>>();
-            
-            mockServiceProvider
-                .Setup(sp => sp.GetService(typeof(IPropostaMessageConsumerService)))
-                .Returns(_mockConsumerService.Object);
-
             var consumer = new PropostaMessageConsumer(
                 mockSqsClient.Object,
                 mockServiceProvider.Object,
                 mockLogger.Object,
                 "https://sqs.us-east-1.amazonaws.com/123456789012/proposta-queue");
+
+            // Usar reflexão para acessar o método privado ProcessarMensagemAsync
+            var processarMensagemMethod = typeof(PropostaMessageConsumer).GetMethod(
+                "ProcessarMensagemAsync", 
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+            // Act
+            await (Task)processarMensagemMethod.Invoke(consumer, new object[] { sqsMessage });
+
+            // Assert
+            // Verificamos que o serviço de processamento nunca foi chamado devido ao JSON inválido
+            _mockConsumerService.Verify(
+                service => service.ProcessarMensagemPropostaAsync(
+                    It.IsAny<Guid>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<decimal>()),
+                Times.Never);
+
+            // Verificamos que o logger registrou o erro
+            mockLogger.Verify(
+                logger => logger.Log(
+                    LogLevel.Error,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Erro ao processar mensagem")),
+                    It.IsAny<Exception>(),
+                    It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task TestarProcessamentoMensagemSQS_ComEventTypeDiferente_NaoDeveProcessar()
+        {
+            // Arrange
+            var mockSqsClient = new Mock<IAmazonSQS>();
+            var mockServiceProvider = new Mock<IServiceProvider>();
+            var mockLogger = new Mock<ILogger<PropostaMessageConsumer>>();
+            var mockScope = new Mock<IServiceScope>();
+            var mockScopeFactory = new Mock<IServiceScopeFactory>();
+            
+            // Configurar o mock do service provider para retornar o scope factory
+            mockServiceProvider
+                .Setup(sp => sp.GetService(typeof(IServiceScopeFactory)))
+                .Returns(mockScopeFactory.Object);
+
+            // Configurar o scope factory para retornar o scope
+            mockScopeFactory
+                .Setup(factory => factory.CreateScope())
+                .Returns(mockScope.Object);
+
+            // Configurar o scope para retornar o service provider
+            mockScope
+                .Setup(scope => scope.ServiceProvider)
+                .Returns(mockServiceProvider.Object);
+
+            // Configurar o service provider para retornar o consumer service
+            mockServiceProvider
+                .Setup(sp => sp.GetRequiredService(typeof(IPropostaMessageConsumerService)))
+                .Returns(_mockConsumerService.Object);
 
             var propostaId = Guid.NewGuid();
             var mensagem = new {
@@ -341,34 +431,78 @@ namespace ContratacaoService.Tests.Infrastructure.Messaging
             var sqsMessage = new Message
             {
                 Body = messageBody,
+                MessageId = "test-different-event-type-id",
                 MessageAttributes = new Dictionary<string, MessageAttributeValue>
                 {
                     { "EventType", new MessageAttributeValue { StringValue = "OutroEventoQualquer", DataType = "String" } }
                 }
             };
 
-            // Act & Assert
-            Assert.NotNull(consumer);
-            // Não podemos testar diretamente o comportamento interno, mas garantimos que o consumer foi criado corretamente
-        }
-
-        [Fact]
-        public void TestarProcessamentoMensagemSQS_SemEventType_NaoDeveProcessar()
-        {
-            // Arrange
-            var mockSqsClient = new Mock<IAmazonSQS>();
-            var mockServiceProvider = new Mock<IServiceProvider>();
-            var mockLogger = new Mock<ILogger<PropostaMessageConsumer>>();
-            
-            mockServiceProvider
-                .Setup(sp => sp.GetService(typeof(IPropostaMessageConsumerService)))
-                .Returns(_mockConsumerService.Object);
-
             var consumer = new PropostaMessageConsumer(
                 mockSqsClient.Object,
                 mockServiceProvider.Object,
                 mockLogger.Object,
                 "https://sqs.us-east-1.amazonaws.com/123456789012/proposta-queue");
+
+            // Usar reflexão para acessar o método privado ProcessarMensagemAsync
+            var processarMensagemMethod = typeof(PropostaMessageConsumer).GetMethod(
+                "ProcessarMensagemAsync", 
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+            // Act
+            await (Task)processarMensagemMethod.Invoke(consumer, new object[] { sqsMessage });
+
+            // Assert
+            // Verificamos que o serviço de processamento nunca foi chamado devido ao EventType diferente
+            _mockConsumerService.Verify(
+                service => service.ProcessarMensagemPropostaAsync(
+                    It.IsAny<Guid>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<decimal>()),
+                Times.Never);
+
+            // Verificamos que o logger registrou a informação sobre o EventType diferente
+            mockLogger.Verify(
+                logger => logger.Log(
+                    LogLevel.Information,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("EventType diferente")),
+                    It.IsAny<Exception>(),
+                    It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task TestarProcessamentoMensagemSQS_SemEventType_NaoDeveProcessar()
+        {
+            // Arrange
+            var mockSqsClient = new Mock<IAmazonSQS>();
+            var mockServiceProvider = new Mock<IServiceProvider>();
+            var mockLogger = new Mock<ILogger<PropostaMessageConsumer>>();
+            var mockScope = new Mock<IServiceScope>();
+            var mockScopeFactory = new Mock<IServiceScopeFactory>();
+            
+            // Configurar o mock do service provider para retornar o scope factory
+            mockServiceProvider
+                .Setup(sp => sp.GetService(typeof(IServiceScopeFactory)))
+                .Returns(mockScopeFactory.Object);
+
+            // Configurar o scope factory para retornar o scope
+            mockScopeFactory
+                .Setup(factory => factory.CreateScope())
+                .Returns(mockScope.Object);
+
+            // Configurar o scope para retornar o service provider
+            mockScope
+                .Setup(scope => scope.ServiceProvider)
+                .Returns(mockServiceProvider.Object);
+
+            // Configurar o service provider para retornar o consumer service
+            mockServiceProvider
+                .Setup(sp => sp.GetRequiredService(typeof(IPropostaMessageConsumerService)))
+                .Returns(_mockConsumerService.Object);
 
             var propostaId = Guid.NewGuid();
             var mensagem = new {
@@ -383,13 +517,45 @@ namespace ContratacaoService.Tests.Infrastructure.Messaging
             var sqsMessage = new Message
             {
                 Body = messageBody,
-                // Sem MessageAttributes
+                MessageId = "test-no-event-type-id",
+                // Sem o atributo EventType
                 MessageAttributes = new Dictionary<string, MessageAttributeValue>()
             };
 
-            // Act & Assert
-            Assert.NotNull(consumer);
-            // Não podemos testar diretamente o comportamento interno, mas garantimos que o consumer foi criado corretamente
+            var consumer = new PropostaMessageConsumer(
+                mockSqsClient.Object,
+                mockServiceProvider.Object,
+                mockLogger.Object,
+                "https://sqs.us-east-1.amazonaws.com/123456789012/proposta-queue");
+
+            // Usar reflexão para acessar o método privado ProcessarMensagemAsync
+            var processarMensagemMethod = typeof(PropostaMessageConsumer).GetMethod(
+                "ProcessarMensagemAsync", 
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+            // Act
+            await (Task)processarMensagemMethod.Invoke(consumer, new object[] { sqsMessage });
+
+            // Assert
+            // Verificamos que o serviço de processamento nunca foi chamado devido à ausência do EventType
+            _mockConsumerService.Verify(
+                service => service.ProcessarMensagemPropostaAsync(
+                    It.IsAny<Guid>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<decimal>()),
+                Times.Never);
+
+            // Verificamos que o logger registrou a informação sobre a ausência do EventType
+            mockLogger.Verify(
+                logger => logger.Log(
+                    LogLevel.Information,
+                    It.IsAny<EventId>(),
+                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Atributo EventType não encontrado")),
+                    It.IsAny<Exception>(),
+                    It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+                Times.Once);
         }
     }
 }

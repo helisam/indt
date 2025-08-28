@@ -1,0 +1,127 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - seguros-network
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=sqs
+      - DEBUG=1
+      - DATA_DIR=/tmp/localstack/data
+    volumes:
+      - localstack-data:/tmp/localstack
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      - seguros-network
+
+  proposta-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: proposta
+    container_name: proposta-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_started
+      init-localstack:
+        condition: service_completed_successfully
+    ports:
+      - "5001:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__PostgreSQL=Host=postgres;Port=5432;Database=proposta_db;Username=postgres;Password=postgres
+      - LocalStack__UseLocalStack=true
+      - LocalStack__LocalStackHost=localstack
+      - LocalStack__LocalStackPort=4566
+      - AWS__Region=us-east-1
+      - AWS__SQS__PropostaStatusQueue=proposta-status-queue
+    networks:
+      - seguros-network
+
+  contratacao-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: contratacao
+    container_name: contratacao-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_started
+      init-localstack:
+        condition: service_completed_successfully
+    ports:
+      - "5002:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__PostgreSQL=Host=postgres;Port=5432;Database=contratacao_db;Username=postgres;Password=postgres
+      - LocalStack__UseLocalStack=true
+      - LocalStack__LocalStackHost=localstack
+      - LocalStack__LocalStackPort=4566
+      - AWS__Region=us-east-1
+      - AWS__SQS__PropostaStatusQueue=proposta-status-queue
+    networks:
+      - seguros-network
+
+  init-localstack:
+    image: amazon/aws-cli:latest
+    container_name: init-localstack
+    depends_on:
+      - localstack
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "sleep 10 &&
+      aws --endpoint-url=http://localstack:4566 sqs create-queue --queue-name proposta-status-queue &&
+      aws --endpoint-url=http://localstack:4566 sqs get-queue-url --queue-name proposta-status-queue"
+    networks:
+      - seguros-network
+
+  init-postgres:
+    image: postgres:latest
+    container_name: init-postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - PGPASSWORD=postgres
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "sleep 5 &&
+      psql -h postgres -U postgres -c 'CREATE DATABASE proposta_db;' &&
+      psql -h postgres -U postgres -c 'CREATE DATABASE contratacao_db;'"
+    networks:
+      - seguros-network
+
+volumes:
+  postgres-data:
+  localstack-data:
+
+networks:
+  seguros-network:
+    driver: bridge

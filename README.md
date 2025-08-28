@@ -16,6 +16,12 @@ Cada microserviço segue a arquitetura hexagonal (ports and adapters) com as seg
 - **Infrastructure**: Contém implementações concretas de repositórios, acesso a banco de dados e serviços externos.
 - **Api**: Expõe os endpoints REST para acesso às funcionalidades do sistema.
 
+A comunicação entre os microserviços é realizada de forma assíncrona através do AWS SQS, conforme ilustrado no diagrama de arquitetura abaixo:
+
+![Diagrama de Arquitetura](architecture-diagram.svg)
+
+O diagrama mostra o fluxo de mensagens entre o PropostaService e o ContratacaoService, utilizando o AWS SQS como intermediário, com suporte ao LocalStack para desenvolvimento e testes.
+
 ## Tecnologias Utilizadas
 
 - .NET 9.0
@@ -35,7 +41,24 @@ Cada microserviço segue a arquitetura hexagonal (ports and adapters) com as seg
 
 ## Configuração e Execução
 
-### 1. Configuração do Banco de Dados
+### Opção 1: Usando Docker Compose (Recomendado)
+
+```bash
+# Iniciar todos os serviços com Docker Compose
+docker-compose up -d
+```
+
+Esta opção inicia automaticamente:
+- PostgreSQL com os bancos de dados necessários
+- LocalStack com a fila SQS configurada
+- PropostaService na porta 5001
+- ContratacaoService na porta 5002
+
+Os bancos de dados e tabelas são criados automaticamente durante a inicialização dos serviços.
+
+### Opção 2: Execução Manual
+
+#### 1. Configuração do Banco de Dados
 
 ```bash
 # Criar os bancos de dados no PostgreSQL
@@ -46,7 +69,7 @@ docker exec -it postgres psql -U postgres -c "CREATE DATABASE proposta_db;"
 docker exec -it postgres psql -U postgres -c "CREATE DATABASE contratacao_db;"
 ```
 
-### 2. Configuração do LocalStack
+#### 2. Configuração do LocalStack
 
 ```bash
 # Iniciar o LocalStack
@@ -56,7 +79,7 @@ docker run --name localstack -p 4566:4566 -d localstack/localstack
 docker exec -it localstack awslocal sqs create-queue --queue-name proposta-status-queue
 ```
 
-### 3. Executar os Microserviços
+#### 3. Executar os Microserviços
 
 ```bash
 # Executar o PropostaService
@@ -68,13 +91,51 @@ cd ContratacaoService/Api
 dotnet run
 ```
 
+As migrações do banco de dados serão aplicadas automaticamente na inicialização dos serviços.
+
+## Documentação da API com Swagger
+
+O sistema utiliza Swagger/OpenAPI para documentação interativa das APIs. Após iniciar os serviços, você pode acessar a documentação Swagger através dos seguintes URLs:
+
+- **PropostaService Swagger UI**: http://localhost:5145/swagger
+- **ContratacaoService Swagger UI**: http://localhost:5270/swagger
+
+A interface do Swagger permite:
+
+- Visualizar todos os endpoints disponíveis
+- Testar as APIs diretamente pelo navegador
+- Explorar os modelos de dados utilizados nas requisições e respostas
+- Entender os possíveis códigos de status HTTP retornados por cada endpoint
+- Verificar os modelos de dados e parâmetros necessários
+- Entender as respostas esperadas e códigos de status HTTP
+
+Para utilizar o Swagger UI:
+
+1. Acesse a URL do Swagger do serviço desejado
+2. Expanda o endpoint que deseja testar
+3. Clique em "Try it out"
+4. Preencha os parâmetros necessários
+5. Clique em "Execute" para enviar a requisição
+
 ## Fluxo de Funcionamento
 
 1. Uma proposta de seguro é criada através da API do PropostaService.
 2. A proposta é analisada e seu status é atualizado (Aprovada ou Rejeitada).
-3. Quando uma proposta é aprovada, o PropostaService envia uma mensagem para a fila SQS.
-4. O ContratacaoService consome a mensagem da fila e cria automaticamente um contrato para a proposta aprovada.
+3. Quando uma proposta é aprovada, o PropostaService envia uma mensagem para a fila SQS através do `PropostaStatusProducer`.
+4. O ContratacaoService consome a mensagem da fila através do `PropostaMessageConsumer` e cria automaticamente um contrato para a proposta aprovada.
 5. O contrato pode ser consultado e gerenciado através da API do ContratacaoService.
+
+## Integração entre Serviços
+
+A comunicação entre o PropostaService e o ContratacaoService é realizada de forma assíncrona através do AWS SQS:
+
+1. **Produção de Mensagens**: Quando uma proposta é aprovada, o PropostaService utiliza o `PropostaStatusProducer` para enviar uma mensagem para a fila SQS `proposta-status-queue`.
+
+2. **Consumo de Mensagens**: O ContratacaoService utiliza o `PropostaMessageConsumer` (implementado como um `BackgroundService`) para consumir mensagens da fila SQS e processar automaticamente a criação de contratos.
+
+3. **Configuração do LocalStack**: Para desenvolvimento e testes, o sistema utiliza o LocalStack para emular o serviço AWS SQS. A configuração é feita automaticamente durante a inicialização dos serviços, verificando a configuração `LocalStack:UseLocalStack` nos arquivos `appsettings.json`.
+
+4. **Formato das Mensagens**: As mensagens trocadas entre os serviços contêm informações como `PropostaId`, `Status`, `Nome`, `CPF` e `ValorSeguro`, permitindo a criação automática de contratos sem necessidade de consultas adicionais.
 
 ## APIs
 
