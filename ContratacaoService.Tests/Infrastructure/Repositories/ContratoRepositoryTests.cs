@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.InMemory;
 using Microsoft.Data.Sqlite;
 using Moq;
 using Xunit;
@@ -22,12 +23,9 @@ namespace ContratacaoService.Tests.Infrastructure.Repositories
         {
             _mockRepository = new Mock<IContratoRepository>();
             
-            // Configuração para testes com banco de dados em memória
-            var connection = new SqliteConnection("DataSource=:memory:");
-            connection.Open();
-            
+            // Configuração para testes com banco de dados em memória usando EF Core InMemory
             _dbContextOptions = new DbContextOptionsBuilder<ContratacaoDbContext>()
-                .UseSqlite(connection)
+                .UseInMemoryDatabase(databaseName: $"ContratacaoDb_{Guid.NewGuid()}")
                 .Options;
             
             // Cria o esquema do banco de dados

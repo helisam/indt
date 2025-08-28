@@ -23,12 +23,9 @@ namespace PropostaService.Tests.Infrastructure.Repositories
         {
             _mockRepository = new Mock<IPropostaRepository>();
             
-            // Configuração para testes com banco de dados em memória
-            var connection = new SqliteConnection("DataSource=:memory:");
-            connection.Open();
-            
+            // Configuração para testes com banco de dados em memória usando EF Core InMemory
             _dbContextOptions = new DbContextOptionsBuilder<PropostaDbContext>()
-                .UseSqlite(connection)
+                .UseInMemoryDatabase(databaseName: $"PropostaDb_{Guid.NewGuid()}")
                 .EnableSensitiveDataLogging()
                 .Options;
             
@@ -260,21 +257,12 @@ namespace PropostaService.Tests.Infrastructure.Repositories
         public async Task AdicionarAsync_DeveAdicionarPropostaComSucesso_UsandoBancoDeDadosEmMemoria()
         {
             // Arrange
-            // Cria uma nova conexão e contexto para cada teste
-            var connection = new SqliteConnection("DataSource=:memory:");
-            connection.Open();
-            
+            // Cria um contexto com banco de dados em memória
             var options = new DbContextOptionsBuilder<PropostaDbContext>()
-                .UseSqlite(connection)
+                .UseInMemoryDatabase(databaseName: $"PropostaDb_Adicionar_{Guid.NewGuid()}")
                 .EnableSensitiveDataLogging()
                 .Options;
                 
-            // Cria o esquema do banco de dados
-            using (var context = new PropostaDbContext(options))
-            {
-                context.Database.EnsureCreated();
-            }
-            
             // Executa o teste em um novo contexto
             using (var context = new PropostaDbContext(options))
             {
@@ -300,21 +288,12 @@ namespace PropostaService.Tests.Infrastructure.Repositories
         public async Task AtualizarAsync_DeveAtualizarStatusDaProposta_UsandoBancoDeDadosEmMemoria()
         {
             // Arrange
-            // Cria uma nova conexão e contexto para cada teste
-            var connection = new SqliteConnection("DataSource=:memory:");
-            connection.Open();
-            
+            // Cria um contexto com banco de dados em memória
             var options = new DbContextOptionsBuilder<PropostaDbContext>()
-                .UseSqlite(connection)
+                .UseInMemoryDatabase(databaseName: $"PropostaDb_Atualizar_{Guid.NewGuid()}")
                 .EnableSensitiveDataLogging()
                 .Options;
                 
-            // Cria o esquema do banco de dados
-            using (var context = new PropostaDbContext(options))
-            {
-                context.Database.EnsureCreated();
-            }
-            
             // Executa o teste em um novo contexto
             using (var context = new PropostaDbContext(options))
             {
@@ -340,21 +319,12 @@ namespace PropostaService.Tests.Infrastructure.Repositories
         public async Task ListarPorStatusAsync_DeveRetornarPropostasApenasDoStatusEspecificado_UsandoBancoDeDadosEmMemoria()
         {
             // Arrange
-            // Cria uma nova conexão e contexto para cada teste
-            var connection = new SqliteConnection("DataSource=:memory:");
-            connection.Open();
-            
+            // Cria um contexto com banco de dados em memória
             var options = new DbContextOptionsBuilder<PropostaDbContext>()
-                .UseSqlite(connection)
+                .UseInMemoryDatabase(databaseName: $"PropostaDb_ListarPorStatus_{Guid.NewGuid()}")
                 .EnableSensitiveDataLogging()
                 .Options;
                 
-            // Cria o esquema do banco de dados
-            using (var context = new PropostaDbContext(options))
-            {
-                context.Database.EnsureCreated();
-            }
-            
             // Executa o teste em um novo contexto
             using (var context = new PropostaDbContext(options))
             {
@@ -396,21 +366,12 @@ namespace PropostaService.Tests.Infrastructure.Repositories
         public async Task ObterPorIdAsync_DeveRetornarNull_QuandoPropostaNaoExiste_UsandoBancoDeDadosEmMemoria()
         {
             // Arrange
-            // Cria uma nova conexão e contexto para cada teste
-            var connection = new SqliteConnection("DataSource=:memory:");
-            connection.Open();
-            
+            // Cria um contexto com banco de dados em memória
             var options = new DbContextOptionsBuilder<PropostaDbContext>()
-                .UseSqlite(connection)
+                .UseInMemoryDatabase(databaseName: $"PropostaDb_ObterPorId_{Guid.NewGuid()}")
                 .EnableSensitiveDataLogging()
                 .Options;
                 
-            // Cria o esquema do banco de dados
-            using (var context = new PropostaDbContext(options))
-            {
-                context.Database.EnsureCreated();
-            }
-            
             // Executa o teste em um novo contexto
             using (var context = new PropostaDbContext(options))
             {
@@ -429,21 +390,12 @@ namespace PropostaService.Tests.Infrastructure.Repositories
         public async Task ListarTodasAsync_DeveRetornarTodasAsPropostas_EmOrdemDecrescenteDeDataCriacao_UsandoBancoDeDadosEmMemoria()
         {
             // Arrange
-            // Cria uma nova conexão e contexto para cada teste
-            var connection = new SqliteConnection("DataSource=:memory:");
-            connection.Open();
-            
+            // Cria um contexto com banco de dados em memória
             var options = new DbContextOptionsBuilder<PropostaDbContext>()
-                .UseSqlite(connection)
+                .UseInMemoryDatabase(databaseName: $"PropostaDb_ListarTodas_{Guid.NewGuid()}")
                 .EnableSensitiveDataLogging()
                 .Options;
                 
-            // Cria o esquema do banco de dados
-            using (var context = new PropostaDbContext(options))
-            {
-                context.Database.EnsureCreated();
-            }
-            
             // Executa o teste em um novo contexto
             using (var context = new PropostaDbContext(options))
             {
@@ -453,70 +405,103 @@ namespace PropostaService.Tests.Infrastructure.Repositories
                 var proposta1 = new Proposta("João Silva", "123.456.789-00", 1000.00m);
                 await Task.Delay(5); // Pequeno delay para garantir timestamps diferentes
                 var proposta2 = new Proposta("Maria Souza", "987.654.321-00", 2000.00m);
-            await Task.Delay(5);
-            var proposta3 = new Proposta("Pedro Santos", "456.789.123-00", 1500.00m);
-            
-            // Adiciona em ordem diferente da criação
-            await repository.AdicionarAsync(proposta1);
-            await repository.AdicionarAsync(proposta2);
-            await repository.AdicionarAsync(proposta3);
-            
-            // Act
-            var propostas = await repository.ListarTodasAsync();
-            
-            // Assert
-            Assert.NotNull(propostas);
-            Assert.Equal(3, propostas.Count());
-            
-            // Verifica se estão em ordem decrescente de data de criação (a mais recente primeiro)
-            var listaOrdenada = propostas.ToList();
-            Assert.Equal(proposta3.Id, listaOrdenada[0].Id);
-            Assert.Equal(proposta2.Id, listaOrdenada[1].Id);
-            Assert.Equal(proposta1.Id, listaOrdenada[2].Id);
+                await Task.Delay(5);
+                var proposta3 = new Proposta("Pedro Santos", "456.789.123-00", 1500.00m);
+                
+                // Adiciona em ordem diferente da criação
+                await repository.AdicionarAsync(proposta1);
+                await repository.AdicionarAsync(proposta2);
+                await repository.AdicionarAsync(proposta3);
+                
+                // Act
+                var propostas = await repository.ListarTodasAsync();
+                
+                // Assert
+                Assert.NotNull(propostas);
+                Assert.Equal(3, propostas.Count());
+                
+                // Verifica se estão em ordem decrescente de data de criação (a mais recente primeiro)
+                var listaOrdenada = propostas.ToList();
+                Assert.Equal(proposta3.Id, listaOrdenada[0].Id);
+                Assert.Equal(proposta2.Id, listaOrdenada[1].Id);
+                Assert.Equal(proposta1.Id, listaOrdenada[2].Id);
             }
         }
 
         [Fact]
         public void AdicionarAsync_DeveLancarExcecaoQuandoNomeVazio_UsandoBancoDeDadosEmMemoria()
         {
-            // Arrange, Act & Assert
-            var exception = Assert.Throws<ArgumentException>(() => 
-                new Proposta("", "123.456.789-00", 1000.00m));
+            // Arrange
+            var options = new DbContextOptionsBuilder<PropostaDbContext>()
+                .UseInMemoryDatabase(databaseName: $"PropostaDb_NomeVazio_{Guid.NewGuid()}")
+                .Options;
                 
-            Assert.Contains("nome", exception.Message, StringComparison.OrdinalIgnoreCase);
+            // Act & Assert
+            using (var context = new PropostaDbContext(options))
+            {
+                var repository = new PropostaRepository(context);
+                var exception = Assert.Throws<ArgumentException>(() => 
+                    new Proposta("", "123.456.789-00", 1000.00m));
+                    
+                Assert.Contains("nome", exception.Message, StringComparison.OrdinalIgnoreCase);
+            }
         }
 
         [Fact]
         public void AdicionarAsync_DeveLancarExcecaoQuandoCPFNulo_UsandoBancoDeDadosEmMemoria()
         {
-            // Arrange, Act & Assert
-            var exception = Assert.Throws<ArgumentException>(() => 
-                new Proposta("João Silva", "", 1000.00m));
+            // Arrange
+            var options = new DbContextOptionsBuilder<PropostaDbContext>()
+                .UseInMemoryDatabase(databaseName: $"PropostaDb_CPFNulo_{Guid.NewGuid()}")
+                .Options;
                 
-            Assert.Contains("cpf", exception.Message, StringComparison.OrdinalIgnoreCase);
+            // Act & Assert
+            using (var context = new PropostaDbContext(options))
+            {
+                var repository = new PropostaRepository(context);
+                var exception = Assert.Throws<ArgumentException>(() => 
+                    new Proposta("João Silva", "", 1000.00m));
+                    
+                Assert.Contains("cpf", exception.Message, StringComparison.OrdinalIgnoreCase);
+            }
         }
 
         [Fact]
         public void AdicionarAsync_DeveLancarExcecaoQuandoValorSeguroZero_UsandoBancoDeDadosEmMemoria()
         {
-            // Arrange, Act & Assert
-            var exception = Assert.Throws<ArgumentException>(() => 
-                new Proposta("João Silva", "123.456.789-00", 0m));
+            // Arrange
+            var options = new DbContextOptionsBuilder<PropostaDbContext>()
+                .UseInMemoryDatabase(databaseName: $"PropostaDb_ValorZero_{Guid.NewGuid()}")
+                .Options;
                 
-            Assert.Contains("valor", exception.Message, StringComparison.OrdinalIgnoreCase);
+            // Act & Assert
+            using (var context = new PropostaDbContext(options))
+            {
+                var repository = new PropostaRepository(context);
+                var exception = Assert.Throws<ArgumentException>(() => 
+                    new Proposta("João Silva", "123.456.789-00", 0m));
+                    
+                Assert.Contains("valor", exception.Message, StringComparison.OrdinalIgnoreCase);
+            }
         }
 
         [Fact]
         public async Task AtualizarAsync_DeveLancarExcecaoQuandoPropostaNaoExiste_UsandoBancoDeDadosEmMemoria()
         {
             // Arrange
-            using var context = new PropostaDbContext(_dbContextOptions);
-            var repository = new PropostaRepository(context);
-            var propostaNaoExistente = new Proposta("João Silva", "123.456.789-00", 1000.00m);
-            
+            var options = new DbContextOptionsBuilder<PropostaDbContext>()
+                .UseInMemoryDatabase(databaseName: $"PropostaDb_AtualizarNaoExiste_{Guid.NewGuid()}")
+                .Options;
+                
             // Act & Assert
-            await Assert.ThrowsAsync<KeyNotFoundException>(() => 
-                repository.AtualizarAsync(propostaNaoExistente));
+            using (var context = new PropostaDbContext(options))
+            {
+                var repository = new PropostaRepository(context);
+                var proposta = new Proposta("João Silva", "123.456.789-00", 1000.00m);
+                
+                // Não adiciona a proposta ao banco, apenas tenta atualizar
+                await Assert.ThrowsAsync<KeyNotFoundException>(() => repository.AtualizarAsync(proposta));
+            }
         }
     }
 }
