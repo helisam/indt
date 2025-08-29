@@ -8,34 +8,34 @@ Os cenários BDD estão organizados por funcionalidade e serviço:
 
 ### PropostaService
 
-1. **Criação de Propostas** (`CriacaoPropostaScenarios.feature`)
+1. **Criação de Propostas** ([`PropostaService.Tests/BDD/CriacaoPropostaScenarios.feature`](./PropostaService.Tests/BDD/CriacaoPropostaScenarios.feature))
    - Cenários que descrevem o processo de criação de novas propostas de seguro
    - Validações de dados do cliente e do seguro
    - Tratamento de casos especiais como clientes existentes
 
-2. **Aprovação e Rejeição de Propostas** (`AprovacaoRejeicaoPropostaScenarios.feature`)
+2. **Aprovação e Rejeição de Propostas** ([`PropostaService.Tests/BDD/AprovacaoRejeicaoPropostaScenarios.feature`](./PropostaService.Tests/BDD/AprovacaoRejeicaoPropostaScenarios.feature))
    - Cenários que descrevem o fluxo de análise de propostas
    - Aprovação, rejeição e solicitação de informações adicionais
    - Processamento automático de propostas pendentes
 
-3. **Validações e Tratamento de Erros** (`ValidacoesErrosScenarios.feature`)
+3. **Validações e Tratamento de Erros** ([`PropostaService.Tests/BDD/ValidacoesErrosScenarios.feature`](./PropostaService.Tests/BDD/ValidacoesErrosScenarios.feature))
    - Cenários que descrevem validações específicas de dados
    - Tratamento de erros de sistema e conexão
    - Validações de regras de negócio
 
 ### ContratacaoService
 
-1. **Criação de Contratos** (`CriacaoContratoScenarios.feature`)
+1. **Criação de Contratos** ([`ContratacaoService.Tests/BDD/CriacaoContratoScenarios.feature`](./ContratacaoService.Tests/BDD/CriacaoContratoScenarios.feature))
    - Cenários que descrevem a criação automática de contratos a partir de propostas aprovadas
    - Processamento de mensagens da fila
    - Tratamento de erros no processamento de mensagens
 
-2. **Consulta e Cancelamento de Contratos** (`ConsultaCancelamentoContratoScenarios.feature`)
+2. **Consulta e Cancelamento de Contratos** ([`ContratacaoService.Tests/BDD/ConsultaCancelamentoContratoScenarios.feature`](./ContratacaoService.Tests/BDD/ConsultaCancelamentoContratoScenarios.feature))
    - Cenários que descrevem a consulta de contratos por diferentes critérios
    - Cancelamento de contratos por diferentes motivos
    - Renovação de contratos
 
-3. **Validações e Tratamento de Erros** (`ValidacoesErrosContratoScenarios.feature`)
+3. **Validações e Tratamento de Erros** ([`ContratacaoService.Tests/BDD/ValidacoesErrosContratoScenarios.feature`](./ContratacaoService.Tests/BDD/ValidacoesErrosContratoScenarios.feature))
    - Cenários que descrevem validações específicas de contratos
    - Tratamento de erros de sistema e comunicação
    - Validações de regras de negócio específicas para contratos
