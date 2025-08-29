@@ -5,24 +5,33 @@ Este documento descreve como utilizar a coleção Postman criada para testar as 
 ## Pré-requisitos
 
 1. [Postman](https://www.postman.com/downloads/) instalado
-2. Serviços de API em execução:
+2. Serviços de API em execução em um dos seguintes ambientes:
+
+   ### Execução Local (Opção 1)
    - PropostaService: http://localhost:5145
    - ContratacaoService: http://localhost:5270
+
+   ### Execução via Docker Compose (Opção 2)
+   - PropostaService: http://localhost:5001
+   - ContratacaoService: http://localhost:5002
 
 ## Arquivos Disponíveis
 
 - `postman_collection.json`: Coleção com todos os endpoints das APIs
-- `postman_environment.json`: Variáveis de ambiente para a coleção
+- `postman_environment.json`: Variáveis de ambiente para execução local (portas 5145/5270)
+- `postman_environment_docker.json`: Variáveis de ambiente para execução via Docker (portas 5001/5002)
 - `postman_test_flow.js`: Script para testar o fluxo completo automaticamente
-- `newman_test.ps1`: Script PowerShell para executar testes via linha de comando
+- `newman_test.ps1`: Script PowerShell para executar testes via linha de comando (suporta ambientes local e Docker)
 
 ## Importando a Coleção e o Ambiente
 
 1. Abra o Postman
 2. Clique em "Import" no canto superior esquerdo
-3. Selecione os arquivos `postman_collection.json` e `postman_environment.json`
+3. Selecione os arquivos `postman_collection.json`, `postman_environment.json` e `postman_environment_docker.json`
 4. Clique em "Import"
-5. Após a importação, selecione o ambiente "Seguros API Environment" no seletor de ambientes no canto superior direito
+5. Após a importação, selecione o ambiente desejado no seletor de ambientes no canto superior direito:
+   - "Seguros API Environment" para execução local (portas 5145/5270)
+   - "Seguros API Environment - Docker" para execução via Docker (portas 5001/5002)
 
 ## Estrutura da Coleção
 
@@ -51,14 +60,22 @@ Endpoints para gerenciamento de contratos de seguro:
 
 ## Variáveis de Ambiente
 
-A coleção utiliza as seguintes variáveis de ambiente que já estão configuradas no arquivo `postman_environment.json`:
+A coleção utiliza as seguintes variáveis de ambiente que já estão configuradas nos arquivos de ambiente:
 
-- `propostaServiceUrl`: URL base do serviço de propostas (padrão: "http://localhost:5145")
-- `contratacaoServiceUrl`: URL base do serviço de contratação (padrão: "http://localhost:5270")
+### Ambiente Local (`postman_environment.json`)
+
+- `propostaServiceUrl`: URL base do serviço de propostas ("http://localhost:5145")
+- `contratacaoServiceUrl`: URL base do serviço de contratação ("http://localhost:5270")
 - `propostaId`: ID de uma proposta existente (será preenchido automaticamente ao criar uma proposta)
 - `contratoId`: ID de um contrato existente (será preenchido automaticamente ao criar um contrato)
 - `cpf`: CPF para filtrar contratos (padrão: "123.456.789-00")
 - `status`: Status da proposta (0 = EmAnalise, 1 = Aprovada, 2 = Rejeitada)
+
+### Ambiente Docker (`postman_environment_docker.json`)
+
+- `propostaServiceUrl`: URL base do serviço de propostas ("http://localhost:5001")
+- `contratacaoServiceUrl`: URL base do serviço de contratação ("http://localhost:5002")
+- Demais variáveis são idênticas ao ambiente local
 
 ## Fluxo de Teste Manual
 
@@ -105,16 +122,37 @@ Para executar os testes via linha de comando usando Newman:
 1. Certifique-se de ter o [Node.js](https://nodejs.org/) instalado
 2. Execute o script PowerShell `newman_test.ps1`
 
+### Opções de Execução
+
+O script `newman_test.ps1` aceita os seguintes parâmetros:
+
+- `-Docker`: Executa os testes usando as URLs do ambiente Docker (portas 5001/5002)
+- `-Help`: Exibe a mensagem de ajuda
+
+#### Exemplos de Uso
+
+```powershell
+# Executa os testes no ambiente local (portas 5145/5270)
+.\newman_test.ps1
+
+# Executa os testes no ambiente Docker (portas 5001/5002)
+.\newman_test.ps1 -Docker
+
+# Exibe a ajuda
+.\newman_test.ps1 -Help
+```
+
 O script irá:
 1. Verificar se o Newman está instalado (e instalá-lo se necessário)
-2. Verificar se os serviços de API estão em execução
-3. Executar todos os testes da coleção
-4. Gerar um relatório HTML com os resultados
+2. Verificar se os serviços de API estão em execução nas portas corretas (com base no ambiente selecionado)
+3. Executar todos os testes da coleção usando o arquivo de ambiente apropriado
+4. Gerar um relatório HTML com os resultados (com sufixo "-docker" para testes no ambiente Docker)
 
 Benefícios do Newman:
 - Execução de testes em ambientes de CI/CD
 - Geração de relatórios detalhados
 - Automação de testes sem a interface gráfica do Postman
+- Suporte a múltiplos ambientes (local e Docker)
 
 ## Testes Automáticos
 
@@ -133,7 +171,12 @@ A coleção inclui testes automáticos básicos:
 
 Se encontrar problemas ao executar as requisições:
 
-1. Verifique se os serviços estão em execução nas portas corretas
-2. Certifique-se de que o ambiente está selecionado no Postman
+1. Verifique se os serviços estão em execução nas portas corretas:
+   - Para execução local: portas 5145 (Proposta) e 5270 (Contratação)
+   - Para execução via Docker: portas 5001 (Proposta) e 5002 (Contratação)
+2. Certifique-se de que o ambiente correto está selecionado no Postman:
+   - "Seguros API Environment" para execução local
+   - "Seguros API Environment - Docker" para execução via Docker
 3. Verifique se as variáveis de ambiente estão configuradas corretamente
 4. Consulte os logs dos serviços para identificar possíveis erros
+5. Se estiver usando o script Newman, certifique-se de usar o parâmetro `-Docker` quando estiver testando com os serviços em contêineres Docker

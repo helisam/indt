@@ -1,5 +1,21 @@
 # Script PowerShell para executar testes de API usando Newman
 
+# Parâmetros
+param (
+    [switch]$Docker,
+    [switch]$Help
+)
+
+# Exibe ajuda
+if ($Help) {
+    Write-Host "Uso: .\newman_test.ps1 [-Docker] [-Help]" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Opções:" -ForegroundColor Cyan
+    Write-Host "  -Docker    Executa os testes usando as URLs do ambiente Docker (portas 5001/5002)" -ForegroundColor Cyan
+    Write-Host "  -Help      Exibe esta mensagem de ajuda" -ForegroundColor Cyan
+    exit 0
+}
+
 # Verifica se o Newman está instalado
 $newmanInstalled = npm list -g newman
 if ($newmanInstalled -notmatch "newman") {
@@ -15,8 +31,16 @@ if ($newmanInstalled -notmatch "newman") {
 # Verifica se os serviços estão em execução
 Write-Host "Verificando se os serviços estão em execução..." -ForegroundColor Cyan
 
-$propostaServiceUrl = "http://localhost:5145"
-$contratacaoServiceUrl = "http://localhost:5270"
+# Define as URLs dos serviços com base no parâmetro Docker
+if ($Docker) {
+    $propostaServiceUrl = "http://localhost:5001"
+    $contratacaoServiceUrl = "http://localhost:5002"
+    Write-Host "Usando URLs do ambiente Docker (portas 5001/5002)" -ForegroundColor Yellow
+} else {
+    $propostaServiceUrl = "http://localhost:5145"
+    $contratacaoServiceUrl = "http://localhost:5270"
+    Write-Host "Usando URLs do ambiente local (portas 5145/5270)" -ForegroundColor Yellow
+}
 
 $propostaServiceRunning = $false
 $contratacaoServiceRunning = $false
@@ -25,20 +49,20 @@ try {
     $propostaResponse = Invoke-WebRequest -Uri "$propostaServiceUrl/api/Propostas" -Method GET -TimeoutSec 5 -ErrorAction SilentlyContinue
     if ($propostaResponse.StatusCode -eq 200) {
         $propostaServiceRunning = $true
-        Write-Host "Serviço de Proposta está em execução!" -ForegroundColor Green
+        Write-Host "Serviço de Proposta está em execução em $propostaServiceUrl!" -ForegroundColor Green
     }
 } catch {
-    Write-Host "Serviço de Proposta não está em execução!" -ForegroundColor Red
+    Write-Host "Serviço de Proposta não está em execução em $propostaServiceUrl!" -ForegroundColor Red
 }
 
 try {
     $contratacaoResponse = Invoke-WebRequest -Uri "$contratacaoServiceUrl/api/Contratos" -Method GET -TimeoutSec 5 -ErrorAction SilentlyContinue
     if ($contratacaoResponse.StatusCode -eq 200) {
         $contratacaoServiceRunning = $true
-        Write-Host "Serviço de Contratação está em execução!" -ForegroundColor Green
+        Write-Host "Serviço de Contratação está em execução em $contratacaoServiceUrl!" -ForegroundColor Green
     }
 } catch {
-    Write-Host "Serviço de Contratação não está em execução!" -ForegroundColor Red
+    Write-Host "Serviço de Contratação não está em execução em $contratacaoServiceUrl!" -ForegroundColor Red
 }
 
 if (-not $propostaServiceRunning -or -not $contratacaoServiceRunning) {
@@ -54,7 +78,15 @@ if (-not $propostaServiceRunning -or -not $contratacaoServiceRunning) {
 Write-Host "Executando testes com Newman..." -ForegroundColor Cyan
 
 $collectionPath = "$PSScriptRoot\postman_collection.json"
-$environmentPath = "$PSScriptRoot\postman_environment.json"
+
+# Define o arquivo de ambiente com base no parâmetro Docker
+if ($Docker) {
+    $environmentPath = "$PSScriptRoot\postman_environment_docker.json"
+    $reportSuffix = "-docker"
+} else {
+    $environmentPath = "$PSScriptRoot\postman_environment.json"
+    $reportSuffix = ""
+}
 
 if (-not (Test-Path $collectionPath)) {
     Write-Host "Arquivo de coleção não encontrado: $collectionPath" -ForegroundColor Red
@@ -67,12 +99,13 @@ if (-not (Test-Path $environmentPath)) {
 }
 
 # Executa os testes
-newman run $collectionPath -e $environmentPath --reporters cli,htmlextra --reporter-htmlextra-export "$PSScriptRoot\newman-report.html"
+Write-Host "Usando arquivo de ambiente: $environmentPath" -ForegroundColor Cyan
+newman run $collectionPath -e $environmentPath --reporters cli,htmlextra --reporter-htmlextra-export "$PSScriptRoot\newman-report$reportSuffix.html"
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "Testes concluídos com sucesso!" -ForegroundColor Green
-    Write-Host "Relatório HTML gerado em: $PSScriptRoot\newman-report.html" -ForegroundColor Cyan
+    Write-Host "Relatório HTML gerado em: $PSScriptRoot\newman-report$reportSuffix.html" -ForegroundColor Cyan
 } else {
     Write-Host "Alguns testes falharam. Verifique o relatório para mais detalhes." -ForegroundColor Yellow
-    Write-Host "Relatório HTML gerado em: $PSScriptRoot\newman-report.html" -ForegroundColor Cyan
+    Write-Host "Relatório HTML gerado em: $PSScriptRoot\newman-report$reportSuffix.html" -ForegroundColor Cyan
 }

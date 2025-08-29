@@ -97,6 +97,13 @@ As migrações do banco de dados serão aplicadas automaticamente na inicializa�
 
 O sistema utiliza Swagger/OpenAPI para documentação interativa das APIs. Após iniciar os serviços, você pode acessar a documentação Swagger através dos seguintes URLs:
 
+### Quando executado via Docker Compose (Opção 1):
+
+- **PropostaService Swagger UI**: http://localhost:5001/swagger
+- **ContratacaoService Swagger UI**: http://localhost:5002/swagger
+
+### Quando executado manualmente (Opção 2):
+
 - **PropostaService Swagger UI**: http://localhost:5145/swagger
 - **ContratacaoService Swagger UI**: http://localhost:5270/swagger
 

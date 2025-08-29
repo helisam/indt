@@ -27,9 +27,20 @@ services:
       - SERVICES=sqs
       - DEBUG=1
       - DATA_DIR=/tmp/localstack/data
+      - CLEAR_TMP_FOLDER=0
+      - SKIP_INFRA_DOWNLOADS=1
+      - DISABLE_CORS_CHECKS=1
+      - DISABLE_CUSTOM_CORS_S3=1
+      - DISABLE_CUSTOM_CORS_APIGATEWAY=1
     volumes:
-      - localstack-data:/tmp/localstack
+      - localstack-data:/tmp/localstack/data
       - "/var/run/docker.sock:/var/run/docker.sock"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "curl -f http://localhost:4566/ || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 15s
     networks:
       - seguros-network
 
@@ -43,11 +54,11 @@ services:
       postgres:
         condition: service_healthy
       localstack:
-        condition: service_started
+        condition: service_healthy
       init-localstack:
         condition: service_completed_successfully
     ports:
-      - "5001:80"
+      - "5001:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__PostgreSQL=Host=postgres;Port=5432;Database=proposta_db;Username=postgres;Password=postgres
@@ -69,11 +80,11 @@ services:
       postgres:
         condition: service_healthy
       localstack:
-        condition: service_started
+        condition: service_healthy
       init-localstack:
         condition: service_completed_successfully
     ports:
-      - "5002:80"
+      - "5002:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__PostgreSQL=Host=postgres;Port=5432;Database=contratacao_db;Username=postgres;Password=postgres
@@ -89,16 +100,18 @@ services:
     image: amazon/aws-cli:latest
     container_name: init-localstack
     depends_on:
-      - localstack
+      localstack:
+        condition: service_healthy
     environment:
       - AWS_ACCESS_KEY_ID=test
       - AWS_SECRET_ACCESS_KEY=test
       - AWS_DEFAULT_REGION=us-east-1
     entrypoint: ["/bin/sh", "-c"]
     command: >
-      "sleep 10 &&
+      "sleep 30 &&
       aws --endpoint-url=http://localstack:4566 sqs create-queue --queue-name proposta-status-queue &&
       aws --endpoint-url=http://localstack:4566 sqs get-queue-url --queue-name proposta-status-queue"
+    restart: on-failure:3
     networks:
       - seguros-network
 
@@ -121,6 +134,7 @@ services:
 volumes:
   postgres-data:
   localstack-data:
+    driver: local
 
 networks:
   seguros-network:
